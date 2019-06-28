@@ -14,7 +14,9 @@ namespace ADO.CUSTOM
 {
     /*
      /// <summary>
-     /// 定义抽象类，以泛型为参数。即当实例化或继承此抽象类时，必须指明该泛型的具体类型
+     /// 定义抽象类，以泛型为参数，继承于AdoCustom类
+     /// 1.当实例化或继承此抽象类时，必须指明该泛型的具体类型。
+     /// 2.应避免在泛型类中定义静态变量，因为不同的泛型会被视作完全不同的类型，即两个泛型之间不会共享静态内存。
      /// </summary>
      /// <typeparam name="T"></typeparam>
      /*
@@ -22,33 +24,8 @@ namespace ADO.CUSTOM
      * where表明了对类型变量T的约束关系。where T：new()指明了创建T的实例时应该具有构造函数。
      * 一般情况下，是无法创建一个泛型类型参数的实例。然而，new()约束改变了这种情况，要求类型参数必须提供一个无参数的构造函数。
      */
-    public abstract class BaseDAL<T> where T : new()
+    public abstract class BaseDAL<T> : AdoCustom where T : new()
     {
-
-        protected static String connStr = null;
-        protected static SqlConnection conn = null;
-
-        /// <summary>
-        /// 静态构造函数
-        /// 1.一个类只能有一个静态构造器
-        /// 2.静态构造器可与实例化构造器共存
-        /// 3.在创建第一个实例或者任何静态成员被引用时，静态构造器被调用，最多运行一次
-        /// </summary>
-        static BaseDAL()
-        {
-            try {
-                //从app.config文件中读取连接字符串
-                connStr = ConfigurationManager.ConnectionStrings["connStr"].ToString();
-            }
-            catch (Exception ex) {
-                string exStr = "【异常】请检查app.config中的数据库连接字符串是否已正确配置";
-                Console.WriteLine(exStr);
-                MessageBox.Show(exStr);
-                throw new Exception(exStr);
-            }
-
-        }
-
 
         /// <summary>
         /// 增
@@ -57,11 +34,13 @@ namespace ADO.CUSTOM
         public static bool Add(T model)
         {
             //初始化
+            SqlConnection conn = null;
             DataTable dataTable = null;
             T t = default(T);
             try {
                 //生成sql语句
                 String sqlStr = GenerateSql_Insert(model);
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
                 conn.Open();
@@ -96,12 +75,14 @@ namespace ADO.CUSTOM
         public static bool Drop(T model, params string[] conditions)
         {
             //初始化
+            SqlConnection conn = null;
             DataTable dataTable = null;
             T t = default(T);        //在泛型类型中，引用类型的default将泛型类型初始化null，值类型的default将泛型类型初始化为0
 
             try {
                 //生成sql语句
                 String sqlStr = GenerateSql_Delete(model, conditions);
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
                 conn.Open();
@@ -135,12 +116,14 @@ namespace ADO.CUSTOM
         public static bool AlterByPK(T model, string PKName)
         {
             //初始化
+            SqlConnection conn = null;
             DataTable dataTable = null;
             T t = default(T);        //在泛型类型中，引用类型的default将泛型类型初始化null，值类型的default将泛型类型初始化为0
 
             try {
                 //生成sql语句
                 String sqlStr = GenerateSql_UpdateByPK(model, PKName);
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
                 conn.Open();
@@ -175,11 +158,13 @@ namespace ADO.CUSTOM
         public static T FindModel(T model, params string[] conditions)
         {
             //初始化
+            SqlConnection conn = null;
             DataTable dataTable = null;
             T t = default(T);        //在泛型类型中，引用类型的default将泛型类型初始化null，值类型的default将泛型类型初始化为0
             try {
                 //生成sql语句
                 String sqlStr = GenerateSql_Select(model, conditions);
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
 
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
@@ -213,14 +198,14 @@ namespace ADO.CUSTOM
         public static List<T> FindList(T model, params string[] conditions)
         {
             //初始化
+            SqlConnection conn = null;
             DataTable dataTable = null;
             List<T> ts = new List<T>();
-
-
 
             try {
                 //生成sql语句
                 String sqlStr = GenerateSql_Select(model, conditions);
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
 
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
@@ -254,10 +239,14 @@ namespace ADO.CUSTOM
         public static DataTable FindDataTable(String sqlStr)
         {
             DataTable dataTable = null;
+            SqlConnection conn = null;
             try {
                 //连接数据库
                 conn = new SqlConnection(connStr); //数据库连接对象
                 conn.Open();
+                //
+                if (ISPRINTFSQL) { Console.WriteLine("【SQL】" + sqlStr); }
+
                 //SQL
                 SqlCommand cmd = new SqlCommand(sqlStr, conn);
                 dataTable = new DataTable();
@@ -284,7 +273,7 @@ namespace ADO.CUSTOM
         /// <returns></returns>
         protected static string GenerateSql_Insert(T model)
         {
-
+            if (model == null) { throw new Exception("【异常】传入的模型对象model是null"); }
             // 获取泛型的具体类型
             Type type = typeof(T);
 
@@ -333,6 +322,7 @@ namespace ADO.CUSTOM
         /// <returns></returns>
         protected static string GenerateSql_Delete(T model, params string[] conditions)
         {
+            if (model == null) { throw new Exception("【异常】传入的模型对象model是null"); }
             // 获取泛型的具体类型
             Type type = typeof(T);
 
@@ -351,17 +341,13 @@ namespace ADO.CUSTOM
             //构造SQL字符串：追加WHERE关键字
             sql.Append(" WHERE ");
 
-
             //遍历所有条件参数
             foreach (string con in conditions) {
-
-
-
                 //遍历所有公共属性
                 foreach (PropertyInfo pi in propertys) {
 
-                    //判断是否找到名字相同的类成员
-                    bool isFound = false;
+                    //用以判断是否找到同名属性
+                    bool ISFOUND = false;
 
                     string propName = pi.Name;  //获取属性名
                     if (con.ToUpper().Equals(propName.ToUpper()))//判断是否同名(都转为大写字母比较)
@@ -370,29 +356,14 @@ namespace ADO.CUSTOM
                         string propValue = pi.GetValue(model).ToString();//根据属性名，得到model对象的属性值
                         sql.Append(string.Format("AND [{0}] = '{1}' ", propName, propValue)); //注意数字int同样可以加单引号
                         //构造完毕，跳出循环
-                        isFound = true;
+                        ISFOUND = true;
+                        break;
                     }
-                    //如果未找到与传入的参数名字匹配的类成员属性，则抛出异常
-                    if (isFound == false) { throw new Exception(string.Format("【异常】在类'{0}'中不存在名为'{1}'的类成员", type.Name, con)); }
+
+                    //如果未找到同名属性，则抛出异常
+                    if (ISFOUND == false) { throw new Exception(string.Format("【异常】在类'{0}'中不存在名为'{1}'的类成员", type.Name, con)); }
                 }
-
             }
-
-
-            ////遍历所有公共属性
-            //foreach (PropertyInfo pi in propertys) {
-            //    string propName = pi.Name;  //获取属性名
-            //    //遍历conditions，查找与属性同名的项
-            //    foreach (string con in conditions) {
-            //        if (con.ToUpper().Equals(propName.ToUpper()))//判断是否同名(都转为大写字母比较)
-            //        {
-            //            //构造SQL字符串
-            //            string propValue = pi.GetValue(model).ToString();//根据属性名，得到model对象的属性值
-            //            sql.Append(string.Format("AND [{0}] = '{1}' ", propName, propValue)); //注意数字int同样可以加单引号
-            //        }
-            //    }
-            //}
-
             //构造SQL字符串：替换掉字符串中第1个'AND'
             Regex regex = new Regex("AND");
             string res = regex.Replace(sql.ToString(), "", 1);
@@ -407,6 +378,7 @@ namespace ADO.CUSTOM
         /// <returns></returns>
         protected static string GenerateSql_UpdateByPK(T model, string PKName)
         {
+            if (model == null) { throw new Exception("【异常】传入的模型对象model是null"); }
             //得到泛型的具体类型和类属性集合
             Type type = typeof(T);
             PropertyInfo[] propertys = type.GetProperties();
@@ -416,8 +388,8 @@ namespace ADO.CUSTOM
             StringBuilder sql_condition = new StringBuilder();
 
 
-            //判断是否找到名字相同的主键
-            bool isFound = false;
+            //判断是否找到同名主键
+            bool ISFOUND = false;
 
             foreach (PropertyInfo pi in propertys) {
                 string propName = pi.Name;
@@ -427,15 +399,15 @@ namespace ADO.CUSTOM
                 //当遇到指定主键时，写入‘修改条件’
                 if (propName.ToUpper().Equals(PKName.ToUpper())) {
                     sql_condition.Append(string.Format("WHERE [{0}] = '{1}'", propName, propValue));
-                    isFound = true;
+                    ISFOUND = true;
                     continue;
                 }
                 //当遇到普通字段时，写入‘修改内容’
                 sql_dest.Append(string.Format(",[{0}] = '{1}' ", propName, propValue));
             }
 
-            //如果未找到与传入的参数名字匹配的类成员属性，则抛出异常
-            if (isFound == false) { throw new Exception(string.Format("【异常】在类'{0}'中不存在名为'{1}'的类成员", type.Name, PKName)); }
+            //如果未找到同名主键，则抛出异常
+            if (ISFOUND == false) { throw new Exception(string.Format("【异常】找不到主键：在类'{0}'中不存在名为'{1}'的类成员", type.Name, PKName)); }
 
             //拼接SQL语句
             string res = sql_dest.Append(sql_condition).ToString();
@@ -464,7 +436,7 @@ namespace ADO.CUSTOM
             StringBuilder sql = new StringBuilder();
             sql.AppendFormat("SELECT * FROM [{0}] ", type.Name); //Model类名必须与表名相同；MSSQL数据库中表名加'[]'符号
 
-            //如果传入的conditions长度为零或为null，则认为是一个无条件查询语句
+            //如果传入的conditions长度为零，或者model模型=null，则认为是一个无条件查询语句
             if (conditions.Length == 0 || conditions == null) {
                 return sql.ToString();
             }
@@ -472,34 +444,31 @@ namespace ADO.CUSTOM
             //构造SQL字符串：追加WHERE关键字
             sql.Append(" WHERE ");
 
-            //遍历所有公共属性的名字，查找与conditions中字符串相同的属性
-            foreach (PropertyInfo pi in propertys) {
+            //遍历所有传入的参数名
+            foreach (string con in conditions) {
 
+                bool ISFOUND = false;//用以判断是否找到同名属性
 
-
-                string propName = pi.Name; //获取属性名
-                foreach (string con in conditions) {
-
-                    //判断是否找到名字相同的类成员
-                    bool isFound = false;
-
+                //遍历所有类成员属性名
+                foreach (PropertyInfo pi in propertys) {
+                    string propName = pi.Name; //获取属性名
                     //检查conditions是否包含该属性名    
                     if (con.ToUpper().Equals(propName.ToUpper()))//全部转为大写字母进行比较
                     {
                         //构造SQL字符串：追加条件查询参数
                         string propValue = pi.GetValue(model).ToString();//根据属性名，得到model对象的属性值
                         sql.Append(string.Format("AND [{0}] = '{1}' ", propName, propValue)); //注意数字int同样可以加单引号
+                        //如果找到同名属性，构造SQL后跳出循环
+                        ISFOUND = true;
+                        break;
+                    }
 
-                        //
-                        isFound = true;
-                    }
-                    //如果未找到与传入的参数名字匹配的类成员属性，则抛出异常
-                    if (isFound == false) {
-                        throw new Exception(string.Format("【异常】在类'{0}'中不存在名为'{1}'的类成员", type.Name, con));
-                    }
                 }
-
+                //如果未找到同名属性，则抛出异常
+                if (!ISFOUND) { throw new Exception(string.Format("【异常】在类'{0}'中不存在名为'{1}'的类成员", type.Name, con)); }
             }
+
+
 
             //构造SQL字符串：替换掉字符串中第1个'AND'
             Regex regex = new Regex("AND");
